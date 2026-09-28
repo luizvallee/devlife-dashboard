@@ -2,7 +2,7 @@ export default function Header({ hora }) {
   return (
     <header className="border-b border-zinc-800 bg-zinc-950 px-6 py-5 md:px-10">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold text-white">
+        <h1 className="text-3xl font-bold font-display text-white">
           Vibe<span className="text-purple-400">List</span>
         </h1>
 

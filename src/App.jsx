@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
+
 import Header from "./components/Header.jsx";
 import Card from "./components/Card.jsx";
 import Footer from "./components/Footer.jsx";
 import StatusRede from "./components/StatusRede.jsx";
 import InstallPrompt from "./components/InstallPrompt.jsx";
+import NotificationPrompt from "./components/NotificationPrompt.jsx";
+
+import { notificarLocal } from "./notifications.js";
+import { agendarSincronizacao } from "./backgroundSync.js";
 
 const musicasIniciais = [
   {
@@ -79,12 +84,40 @@ function App() {
     descricao: "",
   });
 
+  // RELÓGIO EM TEMPO REAL
   useEffect(() => {
     const intervalo = setInterval(() => {
       setHora(new Date().toLocaleTimeString("pt-BR"));
     }, 1000);
 
     return () => clearInterval(intervalo);
+  }, []);
+
+  // RECEBE A MENSAGEM DO BACKGROUND SYNC
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) {
+      return;
+    }
+
+    function aoReceberMensagem(evento) {
+      if (evento.data?.tipo === "SINCRONIZADO") {
+        setAnuncio(
+          "Sincronização em segundo plano concluída."
+        );
+      }
+    }
+
+    navigator.serviceWorker.addEventListener(
+      "message",
+      aoReceberMensagem
+    );
+
+    return () => {
+      navigator.serviceWorker.removeEventListener(
+        "message",
+        aoReceberMensagem
+      );
+    };
   }, []);
 
   function atualizarFormulario(event) {
@@ -96,6 +129,18 @@ function App() {
     }));
   }
 
+  // AGENDA SINCRONIZAÇÃO SE ESTIVER OFFLINE
+  function avisarMudancaOffline() {
+    if (!navigator.onLine) {
+      agendarSincronizacao("sincronizar-musicas");
+
+      setAnuncio(
+        "Alteração salva. A sincronização ocorrerá quando a conexão voltar."
+      );
+    }
+  }
+
+  // ADICIONAR MÚSICA
   function adicionarMusica(event) {
     event.preventDefault();
 
@@ -108,6 +153,7 @@ function App() {
       setAnuncio(
         "Preencha todos os campos antes de adicionar a música."
       );
+
       return;
     }
 
@@ -121,7 +167,10 @@ function App() {
       favorito: false,
     };
 
-    setMusicas((atual) => [...atual, novaMusica]);
+    setMusicas((atual) => [
+      ...atual,
+      novaMusica,
+    ]);
 
     setFormulario({
       titulo: "",
@@ -130,13 +179,22 @@ function App() {
       descricao: "",
     });
 
-    setAnuncio(`Música "${novaMusica.titulo}" adicionada.`);
+    setAnuncio(
+      `Música "${novaMusica.titulo}" adicionada.`
+    );
+
+    avisarMudancaOffline();
   }
 
+  // FAVORITAR MÚSICA
   function favoritarMusica(id) {
-    const musica = musicas.find((item) => item.id === id);
+    const musica = musicas.find(
+      (item) => item.id === id
+    );
 
-    if (!musica) return;
+    if (!musica) {
+      return;
+    }
 
     const novoEstado = !musica.favorito;
 
@@ -151,27 +209,50 @@ function App() {
       )
     );
 
-    setAnuncio(
-      novoEstado
-        ? `Música "${musica.titulo}" adicionada aos favoritos.`
-        : `Música "${musica.titulo}" removida dos favoritos.`
-    );
+    if (novoEstado) {
+      setAnuncio(
+        `Música "${musica.titulo}" adicionada aos favoritos.`
+      );
+
+      notificarLocal(
+        "💜 Música favoritada!",
+        {
+          body: `${musica.titulo} — ${musica.artista}`,
+        }
+      );
+    } else {
+      setAnuncio(
+        `Música "${musica.titulo}" removida dos favoritos.`
+      );
+    }
   }
 
+  // EXCLUIR MÚSICA
   function excluirMusica(id) {
-    const musica = musicas.find((item) => item.id === id);
-
-    if (!musica) return;
-
-    setMusicas((atual) =>
-      atual.filter((item) => item.id !== id)
+    const musica = musicas.find(
+      (item) => item.id === id
     );
 
-    setAnuncio(`Música "${musica.titulo}" excluída.`);
+    if (!musica) {
+      return;
+    }
+
+    setMusicas((atual) =>
+      atual.filter(
+        (item) => item.id !== id
+      )
+    );
+
+    setAnuncio(
+      `Música "${musica.titulo}" excluída.`
+    );
+
+    avisarMudancaOffline();
   }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
+      {/* SKIP LINK PARA ACESSIBILIDADE */}
       <a
         href="#conteudo"
         className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-zinc-900 focus:shadow-lg"
@@ -179,12 +260,19 @@ function App() {
         Pular para o conteúdo
       </a>
 
+      {/* CABEÇALHO */}
       <Header hora={hora} />
 
+      {/* STATUS DA CONEXÃO */}
       <StatusRede />
 
+      {/* INSTALAÇÃO DO PWA */}
       <InstallPrompt />
 
+      {/* NOTIFICAÇÕES */}
+      <NotificationPrompt />
+
+      {/* REGIÃO PARA LEITORES DE TELA */}
       <div
         aria-live="polite"
         role="status"
@@ -197,6 +285,7 @@ function App() {
         id="conteudo"
         className="mx-auto max-w-7xl px-6 py-12 md:px-10"
       >
+        {/* APRESENTAÇÃO */}
         <section
           id="inicio"
           aria-labelledby="titulo-principal"
@@ -217,11 +306,12 @@ function App() {
           </h2>
 
           <p className="mt-5 max-w-2xl text-lg leading-relaxed text-zinc-300">
-            Adicione músicas, favorite suas preferidas e organize
-            seu catálogo musical.
+            Adicione músicas, favorite suas preferidas e
+            organize seu catálogo musical.
           </p>
         </section>
 
+        {/* FORMULÁRIO */}
         <section
           id="adicionar"
           aria-labelledby="titulo-formulario"
@@ -238,6 +328,7 @@ function App() {
             onSubmit={adicionarMusica}
             className="grid gap-5 md:grid-cols-2"
           >
+            {/* NOME DA MÚSICA */}
             <div>
               <label
                 htmlFor="campo-musica"
@@ -257,6 +348,7 @@ function App() {
               />
             </div>
 
+            {/* ARTISTA */}
             <div>
               <label
                 htmlFor="campo-artista"
@@ -276,6 +368,7 @@ function App() {
               />
             </div>
 
+            {/* GÊNERO */}
             <div>
               <label
                 htmlFor="campo-genero"
@@ -295,6 +388,7 @@ function App() {
               />
             </div>
 
+            {/* DESCRIÇÃO */}
             <div>
               <label
                 htmlFor="campo-descricao"
@@ -314,6 +408,7 @@ function App() {
               />
             </div>
 
+            {/* BOTÃO ADICIONAR */}
             <div className="md:col-span-2">
               <button
                 type="submit"
@@ -325,16 +420,37 @@ function App() {
           </form>
         </section>
 
+        {/* CARDS DAS MÚSICAS */}
         <section
           id="musicas"
           aria-labelledby="titulo-musicas"
         >
-          <h2
-            id="titulo-musicas"
-            className="mb-6 text-3xl font-bold"
-          >
-            Músicas cadastradas
-          </h2>
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2
+                id="titulo-musicas"
+                className="text-3xl font-bold"
+              >
+                Músicas cadastradas
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-400">
+                {musicas.length}{" "}
+                {musicas.length === 1
+                  ? "música cadastrada"
+                  : "músicas cadastradas"}
+              </p>
+            </div>
+
+            <p className="text-sm text-zinc-400">
+              {
+                musicas.filter(
+                  (musica) => musica.favorito
+                ).length
+              }{" "}
+              favoritas 💜
+            </p>
+          </div>
 
           {musicas.length === 0 ? (
             <p className="rounded-xl border border-zinc-700 bg-zinc-900 p-6 text-center text-zinc-300">
@@ -352,10 +468,14 @@ function App() {
                   cor={musica.cor}
                   favorito={musica.favorito}
                   onFavoritar={() =>
-                    favoritarMusica(musica.id)
+                    favoritarMusica(
+                      musica.id
+                    )
                   }
                   onExcluir={() =>
-                    excluirMusica(musica.id)
+                    excluirMusica(
+                      musica.id
+                    )
                   }
                 />
               ))}

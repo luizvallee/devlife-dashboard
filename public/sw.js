@@ -62,3 +62,41 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+// BACKGROUND SYNC
+self.addEventListener("sync", (event) => {
+  if (event.tag !== "sincronizar-musicas") {
+    return;
+  }
+
+  event.waitUntil(
+    self.clients.matchAll().then((clientes) => {
+      clientes.forEach((cliente) => {
+        cliente.postMessage({
+          tipo: "SINCRONIZADO",
+          em: new Date().toISOString(),
+        });
+      });
+    })
+  );
+});
+
+// PUSH
+self.addEventListener("push", (event) => {
+  const dados = event.data
+    ? event.data.json()
+    : {
+        titulo: "VibeList 🎵",
+        corpo: "Você tem uma novidade musical.",
+      };
+
+  event.waitUntil(
+    self.registration.showNotification(
+      dados.titulo,
+      {
+        body: dados.corpo,
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+      }
+    )
+  );
+});
