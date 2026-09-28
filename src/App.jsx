@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import Header from "./components/Header.jsx";
 import Card from "./components/Card.jsx";
 import Footer from "./components/Footer.jsx";
+import StatusRede from "./components/StatusRede.jsx";
+import InstallPrompt from "./components/InstallPrompt.jsx";
 
 const musicasIniciais = [
   {
@@ -103,7 +105,9 @@ function App() {
       !formulario.categoria.trim() ||
       !formulario.descricao.trim()
     ) {
-      setAnuncio("Preencha todos os campos antes de adicionar a música.");
+      setAnuncio(
+        "Preencha todos os campos antes de adicionar a música."
+      );
       return;
     }
 
@@ -168,7 +172,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
-      {/* Skip link */}
       <a
         href="#conteudo"
         className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-zinc-900 focus:shadow-lg"
@@ -178,7 +181,10 @@ function App() {
 
       <Header hora={hora} />
 
-      {/* Região de anúncios para leitores de tela */}
+      <StatusRede />
+
+      <InstallPrompt />
+
       <div
         aria-live="polite"
         role="status"
@@ -216,7 +222,6 @@ function App() {
           </p>
         </section>
 
-        {/* Formulário */}
         <section
           id="adicionar"
           aria-labelledby="titulo-formulario"
@@ -320,7 +325,6 @@ function App() {
           </form>
         </section>
 
-        {/* Cards */}
         <section
           id="musicas"
           aria-labelledby="titulo-musicas"
